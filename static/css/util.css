@@ -1,0 +1,69 @@
+
+
+#dygraphsParent {
+width: 90%; 
+height: 50%; 
+//background-color: orange;
+}
+
+#dygraphsContainer {
+position:absolute;  
+width:90%; 
+height:65%; 
+left:5%; 
+top:30%;
+background-color: #181818;
+background-image: -webkit-linear-gradient(top, #181818, #424242); /* Chrome 10-25, iOS 5+, Safari 5.1+ */
+background-image:         linear-gradient(to bottom, #111111, #424242); /* Chrome 26, Firefox 16+, IE 10+, Opera */
+}
+
+h-field {
+display: flex;
+margin-bottom: 36px;
+overflow: hidden;
+}
+
+
+
+
+
+table.blueTable {
+  background-color: #363636;
+  width: 100%;
+  text-align: center;
+}
+table.blueTable td, table.blueTable th {
+}
+table.blueTable tbody td {
+  font-size: 12px;
+  color: #F3F3F3;
+}
+table.blueTable thead {
+  background: #04111A;
+  background: -moz-linear-gradient(top, #434c53 0%, #1d2831 66%, #04111A 100%);
+  background: -webkit-linear-gradient(top, #434c53 0%, #1d2831 66%, #04111A 100%);
+  background: linear-gradient(to bottom, #434c53 0%, #1d2831 66%, #04111A 100%);
+}
+table.blueTable thead th {
+  font-size: 14px;
+  font-weight: bold;
+  color: #FFFFFF;
+  text-align: center;
+}
+table.blueTable tfoot td {
+  font-size: 14px;
+}
+table.blueTable tfoot .links {
+  text-align: right;
+}
+table.blueTable tfoot .links a{
+  display: inline-block;
+  background: #1C6EA4;
+  color: #FFFFFF;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+
+
+

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+	 <meta charset="utf-8">
+	 <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	 <meta name="viewport" content="width=device-width, initial-scale=1">
+	 <meta name="description" content="">
+	 <meta name="author" content="">
+
+	 <title>NSTX AUT / IT</title>
+
+      <!--  Favorite icon [favicon] -->
+      <!--link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}"-->
+      <link rel="icon" type="image/ico" href="static/images/favicon.ico">
+
+
+      <!-- JQUERY -->
+	  <script src="static/js/jquery-3.7.1.min.js"></script>
+
+      <!-- Datatables, buttons, save to Excel, PDF, etc -->
+      <link href="static/css/datatables.min.css" rel="stylesheet">
+
+      <!-- Our Own UTIL CSS -->
+      <link href="static/css/util.css" rel="stylesheet">
+	  <script src="static/js/util.js"></script>
+      
+	  <script src="static/js/datatables.min.js"></script>
+	  <script src="static/js/jszip.min.js"></script>
+	  <script src="static/js/dataTables.buttons.min.js"></script>
+	  <script src="static/js/jszip.min.js"></script>
+	  <script src="static/js/pdfmake.min.js"></script>
+	  <script src="static/js/vfs_fonts.js"></script>
+	  <script src="static/js/buttons.html5.min.js"></script>
+	  <script src="static/js/buttons.print.min.js"></script>
+
+      <!-- Jquery UI -->
+	  <link rel="stylesheet" href="static/css/jquery-ui-base.css">
+	  <script src="static/js/jquery-ui.min.js"></script>
+
+      <!-- Dygraph -->
+      <script src="static/dygraphs/dygraph.min.js"></script>
+	  <link rel="stylesheet" href="static/dygraphs/dygraph.css" type="text/css">
+
+      <!-- Select 2 -->
+
+      <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+      <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+	 <script type="text/javascript" class="init">
+
+      //------------------------------------------
+
+      // executes on loading page
+      $(document).ready(function () {
+
+       $('input').addClass("ui-corner-all");
+		  
+       var $ifname = '{{ file }}';
+       var $devBWID = '{{ devBWID }}'; 
+
+       var $viewMode = "COMPACT"
+       var $portType = "ACCESS"
+
+       $( "input[type='radio']" ).checkboxradio( { icon: false } );
+       $("#IPData").focus(); 
+
+       $( "#tabs" ).tabs({       
+         active: 0 });
+       
+       $('#tabs').on('tabsactivate', function(event, ui) {
+         var newIndex = ui.newTab.index();
+         console.log('Switched to tab '+newIndex);
+         
+         deleteAndCreateTable();
+         
+         if (newIndex == 0) {
+		   $("#IPData").focus(); }
+         else if (newIndex == 1) {
+		   $("#MACData").focus(); }
+         else if (newIndex == 2) {
+           $("#switchSelector").empty().trigger('change'); }
+         else if (newIndex == 3) {
+           $("#vlanSelector").empty().trigger('change'); }
+         else if (newIndex == 4) {
+            getSwitchList(); }         
+         else if (newIndex == 5) {
+            getErrorList(); }
+        else if (newIndex == 5) {
+            getErrorIncrementList();  }     
+        else if (newIndex == 6) {
+          if ( $("input:radio[name ='errorIncrListCheckBox']:checked").val() == 'INPUT' ) {
+            getInputErrorIncrementList();
+            }
+          else {
+            getOutputErrorIncrementList();
+            }  
+          }
+        else {
+		        $("#IPData").focus(); }
+        });
+         
+       // VLAN selector (get data using AJAX)  
+       $('#vlanSelector').select2({
+	       debug: true,
+           dataType: "json",
+           minimumInputLength: 2,
+           SelectionAdapter: 'SingleSelection',
+           placeholder: "Please select",
+           allowClear: true,
+
+           ajax: {
+           url: '/getVLANList',
+           delay: 300,
+           processResults: function (data) {
+	       d = '{ "results": ' + data + '}'
+		   return (JSON.parse (d))
+		   }
+	     }
+       });
+       
+       // event of VLAN select  
+       $('#vlanSelector').on("select2:selecting", function(e) { 
+		console.log (e.params.args.data.id);
+		getVLANInfo(e.params.args.data.id);
+		});       
+                           
+       // event of VLAN port type change
+       $("input[name=VLANradioAccess]").on("change", function() {
+         console.log( $('#vlanSelector').val() ) ;
+	     getVLANInfo($('#vlanSelector').val());
+         }); 
+                
+       // switch selector (get data using AJAX)  
+       $('#switchSelector').select2({
+	       debug: true,
+           dataType: "json",
+           minimumInputLength: 3,
+           SelectionAdapter: 'SingleSelection',
+           placeholder: "Please select",
+           allowClear: true,
+                      
+           ajax: {
+           url: '/getDevicesList',
+           delay: 300,
+           processResults: function (data) {
+	       d = '{ "results": ' + data + '}'
+		   return (JSON.parse (d))
+		   }
+	     }
+       });
+        
+       // event of switch select  
+       $('#switchSelector').on("select2:selecting", function(e) { 
+        console.log (e.params.args.data.id);
+        getSwitchInfo(e.params.args.data.id);
+        });
+         
+       $("input[name=errorListCheckBox]").on("change", function() {
+         console.log( $('#errorListCheckBox').val() ) ;
+	       getErrorList();
+         });  
+
+       // event of switch port select
+       $("input[name=SwitchPorts]").on("change", function() {
+         console.log( $('#switchSelector').val() ) ;
+	     getSwitchInfo($('#switchSelector').val());
+         });  	   
+         
+       $("#btnSearchMAC").click(function(){
+        if (readMAC()[1] > 5) {
+          getMacInfo(readMAC()[0]); }
+        }); 
+  	   
+       $("#btnSearchIP").click(function(){        
+        if (readIP()[1] > 5) {
+          getIPInfo(readIP()[0]); }
+        }); 
+
+       $("input[name=viewAccess]").on("change", function() {
+         if (readMAC()[1] > 5) {
+           getMacInfo(readMAC()[0]); }
+         });  	   
+         
+       $("input[name=radioAccess]").on("change", function() {
+         if (readMAC()[1] > 5) {
+           getMacInfo(readMAC()[0]); }
+         });  	   
+  	   
+       $("input[name=IPviewAccess]").on("change", function() {
+         if (readIP()[1] > 5) {
+           getIPInfo(readIP()[0]); }
+         });  	   
+         
+       $("input[name=IPradioAccess]").on("change", function() {
+         if (readIP()[1] > 5) {
+           getIPInfo(readIP()[0]); }
+         });  	   
+
+       $("input:radio[name ='errorIncrListCheckBox']").on("change", function() {
+          console.log($("input:radio[name ='errorIncrListCheckBox']:checked").val() );
+          if ( $("input:radio[name ='errorIncrListCheckBox']:checked").val() == 'INPUT' ) {
+            getInputErrorIncrementList();
+            }
+          else {
+            getOutputErrorIncrementList();
+            }  
+         });
+
+	   });   
+      //------------------------------------------
+	</script>
+
+  </head>
+  <body class="wide comments example">
+	<a name="top" id="top"></a>
+	<div class="fw-background">
+      <div></div>
+	</div>
+
+  <div hidden name="spinnerDiv" id="spinnerDiv" style="text-align:center; margin:0px auto 0px auto;; z-index: 10;"> 
+    <img style=" width: 80px;" name="spinner" id="spinner" src="static/images/Spinner.gif" alt="" />
+  </div>
+    <div id="tabs" >
+		
+      <ul>
+		<!--li><a href="#tabs-1"> <input type="checkbox" name="seldef" id="ip">  Search by IP Address</a></li>
+		<li><a href="#tabs-2"> <input type="checkbox" name="seldef" id="mac" checked>  Search by MAC Address</a></li-->
+		
+		<li><a href="#tabs-1">By IP</a></li>
+		<li><a href="#tabs-2">By MAC</a></li>
+		<li><a href="#tabs-3">SWITCH Ports</a></li>
+		<li><a href="#tabs-4">VLAN Info</a></li>
+		<li><a href="#tabs-5">SWITCHES</a></li>
+		<li><a href="#tabs-6">PortError (Total)</a></li>
+		<li><a href="#tabs-7">PortError (Incremental)</a></li>
+		
+		<li style="float:right;"> <img src="static/images/NUCOR_Logo_Green_Over_Gray233.png"  height="37" /> </li>		
+		
+		<li style="float:right;"><a href="#tabs-8">HELP / INFO</a></li>
+	 </ul>
+		  
+	<div id="tabs-1">
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+            <label style="display:  inline-block; vertical-align: middle;">IP Address: &nbsp; </label> 
+          </td> 
+          <td> 
+            <input type="search" id="IPData" />    
+          </td> 
+          <td>  &nbsp;&nbsp;&nbsp; </td>
+          <td>  <button id = "btnSearchIP" class="ui-button ui-widget ui-corner-all">Search</button> </td>
+          <td>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+          <td>  <legend>Mode / Columns: &nbsp;&nbsp;&nbsp; </legend>  </td>
+          <td  style="width:220px;">
+            <label for="radio-t1-1-1">  Compact</label>
+            <input type="radio" name="IPviewAccess" value = "COMPACT" id="radio-t1-1-1" checked>
+            <label for="radio-t1-1-2">  Full</label>
+            <input type="radio" name="IPviewAccess" value = "FULL" id="radio-t1-1-2">
+          </td> 
+          <td> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+          <td> <legend>Ports Type: &nbsp;&nbsp;&nbsp; </legend>  </td>
+          <td>
+          </td>
+          <td style="width:220px;">
+            <label for="radio-t1-2-1">  Access ONLY</label>
+            <input type="radio" name="IPradioAccess" value = "ACCESS" id="radio-t1-2-1" checked>
+            <label for="radio-t1-2-2">  ALL</label>
+            <input type="radio" name="IPradioAccess" value = "ALL" id="radio-t1-2-2">
+          </td>         
+          <td>  &nbsp;&nbsp;&nbsp; </td>
+          <td>
+            <label style="font-size: 9px;" > (IP example: 192.168.54.11) </label> 
+          </td>
+        </tr>
+      </table>		
+	</div>
+	
+	<div id="tabs-2">
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+            <label style="display:  inline-block; vertical-align: middle;">MAC Address: &nbsp; </label> 
+          </td> 
+          <td> 
+            <input type="search" id="MACData" />    
+          </td> 
+          <td>  &nbsp;&nbsp;&nbsp; </td>
+          <td>  <button id = "btnSearchMAC" class="ui-button ui-widget ui-corner-all">Search</button> </td>
+          <td>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+          <td>  <legend>Mode / Columns: &nbsp;&nbsp;&nbsp; </legend>  </td>
+          <td  style="width:220px;">
+            <label for="radio-1">  Compact</label>
+            <input type="radio" name="viewAccess" value = "COMPACT" id="radio-1" checked>
+            <label for="radio-2">  Full</label>
+            <input type="radio" name="viewAccess" value = "FULL" id="radio-2">
+          </td> 
+          <td> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+          <td> <legend>Ports Type: &nbsp;&nbsp;&nbsp; </legend>  </td>
+          <td>
+          </td>
+          <td style="width:220px;">
+            <label for="radio-11">  Access ONLY</label>
+            <input type="radio" name="radioAccess" value = "ACCESS" id="radio-11" checked>
+            <label for="radio-12">  ALL</label>
+            <input type="radio" name="radioAccess" value = "ALL" id="radio-12">
+          </td>         
+          <td>  &nbsp;&nbsp;&nbsp; </td>
+          <td>
+            <label style="font-size: 9px;" > (MAC examples: 00:30:18:0e:c7:7e or 0030.180e.c77e or 0030180ec77e) </label> 
+          </td>
+        </tr>
+      </table>		
+    </div>
+    <hr> 
+
+	<div id="tabs-3">
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+            <label style="display:  inline-block; vertical-align: middle;">SWITCH Name or IP: &nbsp; </label> 
+          </td> 
+          <td> 
+            <select class="js-data-example-ajax" id="switchSelector" style="width:420px;" ></select>
+          </td> 
+          <td>  &nbsp;&nbsp;&nbsp; </td>
+          <td> <legend> &nbsp;&nbsp;&nbsp; </legend>  </td>
+          <td style="width:520px;">
+            <label for="radio-t3-2-1">All MACs/IPs per port</label>
+            <input type="radio" name="SwitchPorts" value = "ALL" id="radio-t3-2-1">
+            <label for="radio-t3-2-2">Last MAC/IP per port</label>
+            <input type="radio" name="SwitchPorts" value = "LAST" id="radio-t3-2-2" checked>
+          </td>         
+        </tr>
+      </table>		
+	</div>
+	
+	<div id="tabs-4">
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+            <label style="display:  inline-block; vertical-align: middle;">VLAN number, Name or Description: &nbsp; </label> 
+          </td> 
+          <td> 
+            <select class="js-data-example-ajax" id="vlanSelector" style="width:520px;" ></select>
+          </td> 
+          
+          <td>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+          <td style="width:220px;">
+            <label for="radio-t4-1-1">  Access ONLY</label>
+            <input type="radio" name="VLANradioAccess" value = "ACCESS" id="radio-t4-1-1" checked>
+            <label for="radio-t4-1-2">  ALL</label>
+            <input type="radio" name="VLANradioAccess" value = "ALL" id="radio-t4-1-2">
+          </td>         
+        </tr>
+      </table>	
+	</div>
+
+	<div id="tabs-5">
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+          </td> 
+        </tr>
+      </table>	
+	</div>
+
+  
+	<div id="tabs-6">
+
+    <table style="vertical-align: middle;">
+      <tr>
+        <td> 
+          <label style="display:  inline-block; vertical-align: middle;">Type of Interface/Port to evaluate/show: &nbsp; </label> 
+        </td> 
+        <td  style="width:800px;">
+          <label for="radio-t6-1-1">   ONLY interfaces with traffic  </label>
+          <input type="radio" name="errorListCheckBox" value = "OnlyTrafficInt" id="radio-t6-1-1" checked>
+          <label for="radio-t6-1-2">   ALL interfaces </label>
+          <input type="radio" name="errorListCheckBox" value = "allInt" id="radio-t6-1-2">
+        </td> 
+      </tr>
+    </table>		
+
+    <table style="vertical-align: middle;">
+      <tr>
+        <td> 
+        </td> 
+      </tr>
+    </table>	
+  </div>
+
+
+  <div id="tabs-7">
+
+    <table style="vertical-align: middle;">
+      <tr>
+        <td> 
+          <label style="display:  inline-block; vertical-align: middle;">Type of errors (IN/OUT) to evaluate/show: &nbsp; </label> 
+        </td> 
+        <td  style="width:800px;">  
+          <label for="radio-t7-1-1"> Incremental INPUT </label>
+          <input type="radio" name="errorIncrListCheckBox" value = "INPUT" id="radio-t7-1-1" checked>
+          <label for="radio-t7-1-2"> Incremental OUTPUT </label>
+          <input type="radio" name="errorIncrListCheckBox" value = "OUTPUT" id="radio-t7-1-2">
+        </td> 
+      </tr>
+    </table>	
+
+  <table style="vertical-align: middle;">
+    <tr>
+      <td> 
+      </td> 
+    </tr>
+  </table>	
+  </div>
+
+	
+	<div id="tabs-8">
+      <h1> Search By IP Address </h1>
+      <img src="static/images/Search_IP.png" alt="" />
+      <hr>
+      <img src="static/images/Search_MAC.png" alt="" />
+      <hr>
+      <img src="static/images/Show_Switch_Port_status_01.png" alt="" />
+      <img src="static/images/Show_Switch_Port_status_02.png" alt="" />
+      <hr>
+      <img src="static/images/Show_Unmanaged_01.png" alt="" />
+      <hr>
+      <hr>
+      <h1> Show interfaces with HIGH Input/Output Errors </h1>
+      <img src="static/images/NetMonitorWeb_ErrorsTotal.png" alt="" />
+      <hr>      
+      <h1> Show interfaces Incrementing Input/Output Errors </h1>
+      <img src="static/images/NetMonitorWeb_ErrorsIncremental.png" alt="" />
+      <hr>     
+
+
+
+      <table style="vertical-align: middle;">
+        <tr>
+          <td> 
+          </td> 
+        </tr>
+      </table>	
+	</div>	
+   
+    <div id="TableContainer">   
+	  <table id="example" class="display compact" style="width:95%">
+    </div>
+
+    <div id="TableContainer2">   
+    <table id="example2" class="display compact" style="width:95%">
+    </div>    
+
+  </div>     
+</body>
+</html>
